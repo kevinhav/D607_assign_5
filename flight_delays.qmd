@@ -1,0 +1,64 @@
+---
+title: "Flight Delays"
+author: "Kevin Havis"
+format: html
+---
+
+## Introduction
+
+Let's analyze from flight data! Our initial input data is unfortunately not in tidy shape, so we'll start by parsing it into a proper format. Then we'll perform some exploratory data analysis to get an idea of delays for flights across two airliners and five cities.
+
+## Initial file
+
+```{r, message = FALSE}
+library(tidyverse)
+library(knitr)
+```
+
+```{r}
+# Read in the data
+df <- read.csv('assign_5_input_data.csv', na.strings = c(""))
+```
+
+Our initial data isn't too bad, but it is certainly not tidy. We'll address this by dropping the empty row, renaming our columns, and pivoting the dataset longer to "flatten" it.
+
+```{r}
+# Drop empty row, rename columns, fill empty cells, and pivot into long format
+
+df <- df |> 
+  slice(-3) |> 
+  rename("airline" = "X", "flight_status" = "X.1") |> 
+  fill(airline) |> 
+  rename_with(~ str_to_lower(str_replace(.x, "\\.", "_")), .cols = 3:7) |> 
+  pivot_longer(3:7, names_to = "city", values_to = "flight_count") |> 
+  arrange(desc(flight_count))
+```
+
+We now have a nice, flat, long formatted and tidy data set. We can now do some analysis!
+
+## Analysis
+
+Let's answer some basic questions.
+
+What city has the highest amount of delayed flights?
+
+```{r, echo = FALSE}
+# visualize amount of delayed flights
+df |> 
+  filter(flight_status == "delayed") |> 
+  
+ggplot(aes
+       (x = flight_count,
+        y = reorder(
+          str_to_title(
+            str_replace_all(city, "_", " ")),
+          flight_count),
+         fill = flight_status)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Delayed flights by city",
+    y = "City",
+    x = "Flights"
+  )
+```
+
