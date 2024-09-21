@@ -6,11 +6,14 @@ format: html
 
 ## Introduction
 
-Let's analyze from flight data! Our initial input data is unfortunately not in tidy shape, so we'll start by parsing it into a proper format. Then we'll perform some exploratory data analysis to get an idea of delays for flights across two airliners and five cities.
+Let's analyze some flight data!
 
-## Initial file
+Our initial input data is unfortunately not in tidy shape, so we'll start by parsing it into a proper format. Then we'll perform some exploratory data analysis to get an idea of delays for flights. Our data contains on-time & delayed flight counts across two airlines and five cities on the West Coast.
+
+## Reading the initial file
 
 ```{r, message = FALSE}
+
 library(tidyverse)
 library(knitr)
 ```
@@ -18,6 +21,8 @@ library(knitr)
 ```{r}
 # Read in the data
 df <- read.csv('assign_5_input_data.csv', na.strings = c(""))
+
+kable(df)
 ```
 
 Our initial data isn't too bad, but it is certainly not tidy. We'll address this by dropping the empty row, renaming our columns, and pivoting the dataset longer to "flatten" it.
@@ -32,7 +37,10 @@ df <- df |>
   rename_with(~ str_to_lower(str_replace(.x, "\\.", "_")), .cols = 3:7) |> 
   pivot_longer(3:7, names_to = "city", values_to = "flight_count") |> 
   arrange(desc(flight_count))
+
+kable(df)
 ```
+
 
 We now have a nice, flat, long formatted and tidy data set. We can now do some analysis!
 
@@ -40,25 +48,98 @@ We now have a nice, flat, long formatted and tidy data set. We can now do some a
 
 Let's answer some basic questions.
 
-What city has the highest amount of delayed flights?
+We'll start with a general overview of our data. Since it is a simple data set, we can visualize most of the features in one plot.
 
-```{r, echo = FALSE}
-# visualize amount of delayed flights
+```{r}
+# Set this up so we can factor airline for our factor wrap
 df |> 
-  filter(flight_status == "delayed") |> 
-  
-ggplot(aes
-       (x = flight_count,
-        y = reorder(
-          str_to_title(
+  mutate() |> 
+
+# Plot data across two facets
+ggplot(
+       aes(
+         x = flight_count,
+         y = reorder(
+          str_to_title( # Make city names pretty
             str_replace_all(city, "_", " ")),
           flight_count),
          fill = flight_status)) +
-  geom_bar(stat = "identity") +
+  geom_bar(stat = 'identity') +
+  facet_wrap(~factor(airline, c('AM WEST', 'ALASKA'))) +
+  labs(
+    title = "Flight data overview",
+    y = "Flights",
+    x = "City",
+    fill = "Flight Status"
+  ) + 
+  scale_fill_manual(values = c('#E06565', '#0088CC')) +
+  theme_minimal()
+```
+
+
+What city has the highest amount of delayed flights?
+
+```{r, warning=FALSE}
+# Plot amount of delayed flights by city
+df |> 
+  filter(flight_status == "delayed") |> 
+  group_by(city) |> 
+  summarize(total_flights = sum(flight_count)) |> 
+  
+ggplot(aes
+       (x = reorder(
+          str_to_title(
+            str_replace_all(city, "_", " ")),
+          -total_flights),
+        y = total_flights)) +
+  geom_bar(stat = "identity", fill = '#E06565') +
   labs(
     title = "Delayed flights by city",
     y = "City",
-    x = "Flights"
-  )
+    x = "Flights",
+    fill = "Flight Status"
+  ) +
+  geom_text(aes(label = total_flights),vjust = 1.5, color = "#3b3e40" )+
+  theme_minimal()
 ```
 
+We can see that Phoenix has the highest amount of delayed flights.
+
+
+What airline has the higher amount of on-time flights?
+
+```{r, message = FALSE}
+# Plot proportion of flight status by airline
+
+df |> 
+  group_by(airline, flight_status) |> 
+  summarize(total_flights = sum(flight_count)) |> 
+  
+ggplot(aes
+       (x = reorder(
+          str_to_title(
+            str_replace_all(airline, "_", " ")),
+          -total_flights),
+          fill = flight_status,
+        y = total_flights)) +
+  geom_col(position = "fill") +
+  labs(
+    title = "Flight status by airline",
+    y = "Airline",
+    x = "Flights (Proportion)",
+    fill = "Flight Status"
+  ) + 
+  scale_fill_manual(values = c('#E06565', '#0088CC')) +
+  theme_minimal()
+```
+
+Interestingly, the rate of flights on time versus delayed is actually quite similar between the airlines, despite the significant differences in airports visited and overall number of flights we observed earlier.
+
+## Conclusion
+
+In this article we took a simple dataset, tidied it into a proper long format for data analysis, then created visualizations to explore and understand the data better.
+
+In summary, if you're flying to Phoenix, fly Alaska!
+
+
+ 
